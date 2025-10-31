@@ -1,100 +1,60 @@
-// Post.js - Mongoose model for blog posts
+// src/components/PostList.jsx
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import API from "../api";
 
-const mongoose = require('mongoose');
+const PostList = () => {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const PostSchema = new mongoose.Schema(
-  {
-    title: {
-      type: String,
-      required: [true, 'Please provide a title'],
-      trim: true,
-      maxlength: [100, 'Title cannot be more than 100 characters'],
-    },
-    content: {
-      type: String,
-      required: [true, 'Please provide content'],
-    },
-    featuredImage: {
-      type: String,
-      default: 'default-post.jpg',
-    },
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    excerpt: {
-      type: String,
-      maxlength: [200, 'Excerpt cannot be more than 200 characters'],
-    },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
-      required: true,
-    },
-    tags: [String],
-    isPublished: {
-      type: Boolean,
-      default: false,
-    },
-    viewCount: {
-      type: Number,
-      default: 0,
-    },
-    comments: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
-        },
-        content: {
-          type: String,
-          required: true,
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
-  },
-  { timestamps: true }
-);
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await API.getPosts();
+        setPosts(response.data);
+      } catch (err) {
+        setError("Failed to fetch posts.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-// Create slug from title before saving
-PostSchema.pre('save', function (next) {
-  if (!this.isModified('title')) {
-    return next();
-  }
-  
-  this.slug = this.title
-    .toLowerCase()
-    .replace(/[^\w ]+/g, '')
-    .replace(/ +/g, '-');
-    
-  next();
-});
+    fetchPosts();
+  }, []);
 
-// Virtual for post URL
-PostSchema.virtual('url').get(function () {
-  return `/posts/${this.slug}`;
-});
+  if (loading) return <p>Loading posts...</p>;
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
 
-// Method to add a comment
-PostSchema.methods.addComment = function (userId, content) {
-  this.comments.push({ user: userId, content });
-  return this.save();
+  return (
+    <div style={{ maxWidth: "600px", margin: "auto" }}>
+      {posts.length === 0 ? (
+        <p>No posts available.</p>
+      ) : (
+        posts.map((post) => (
+          <div
+            key={post._id}
+            style={{
+              border: "1px solid #ccc",
+              marginBottom: "10px",
+              padding: "10px",
+              cursor: "pointer",
+              backgroundColor: "#fefefe"
+            }}
+          >
+            {/* Wrap title in Link to PostDetail page */}
+            <Link
+              to={`/posts/${post._id}`}
+              style={{ textDecoration: "none", color: "black" }}
+            >
+              <h3>{post.title}</h3>
+              <p>{post.content.slice(0, 100)}...</p>
+            </Link>
+          </div>
+        ))
+      )}
+    </div>
+  );
 };
 
-// Method to increment view count
-PostSchema.methods.incrementViewCount = function () {
-  this.viewCount += 1;
-  return this.save();
-};
-
-module.exports = mongoose.model('Post', PostSchema); 
+export default PostList;
